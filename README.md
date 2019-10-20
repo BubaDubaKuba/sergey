@@ -1,2 +1,2 @@
 # sergey
- school project 1
+ school project
