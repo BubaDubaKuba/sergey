@@ -1,12 +1,14 @@
 # TODO: add app icon
 
-from PyQt5.QtWidgets import QApplication, QWidget, QGridLayout, QHBoxLayout, QPushButton, QLabel, QFrame, QTextEdit, QPlainTextEdit, QSpacerItem
+from PyQt5.QtWidgets import QApplication, QWidget, QGridLayout, QHBoxLayout, QVBoxLayout, QPushButton, QLabel, QFrame, QTextEdit, QPlainTextEdit, QLineEdit, QSpacerItem, QSizePolicy
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEngineSettings
-from PyQt5.QtGui import QIcon
+from PyQt5.QtGui import QIcon, QColor, QTextCursor
 from PyQt5.QtCore import QUrl, QRect, QPoint, QSize, Qt
 #import PyQt5
 import os
-import re
+import random
+import time
+import threading
 #import output
 
 class SergeyBot:
@@ -14,20 +16,31 @@ class SergeyBot:
     ("понимание" ввода пользователя можно было сделать с помощью
     функций, ну да ладна...)"""
     def __init__(self):
+        self.is_answering = False
         self.quest_questions = ("")
         self.greeting_questions = ("привет", "здравствуй")
         self.all_questions = (self.quest_questions)
         self.default_answers = ("Непонял...", "Я играю в танки...")
     
     def answer(self, question : str):
-        for question_type in self.all_questions:
-            pass
-    
+        return random.choice(self.default_answers)
+
+class Chat(QTextEdit):
+    def __init__(self, str, parent=None):
+        super().__init__(str, parent)
+        self.setReadOnly(True)
+
+
 
 class InputButton(QPushButton):
-    def __init__(self, str, parent=None):
-        super().__init__(str, parent=parent)
-        self.clicked.connect(lambda: print(self.text()))
+    def __init__(self, s, parent, mainApp):
+        super().__init__(s, parent=parent)
+        self.s = s
+        self.mainApp = mainApp
+        def clik():
+            self.mainApp.inputbox.setText(self.s)
+            self.mainApp.sendMsg()
+        self.clicked.connect(clik)
 
 
 class SergeyApp(QWidget):
@@ -35,8 +48,37 @@ class SergeyApp(QWidget):
     Тут располагаются все виджеты(кнопки, поля ввода и др.)"""
     def __init__(self):
         super().__init__()
+        self.bot = SergeyBot()
         self.initUI()
     
+    def sendMsg(self):
+        txt = self.inputbox.text()
+        self.inputbox.clear()
+        if txt != "" and not self.bot.is_answering:
+            self.chat.setTextColor(Qt.white)
+            self.chat.append("Вы: " + txt)
+            self.chat.setTextColor(Qt.black)
+            self.chat.insertPlainText("\nСерёга: " + self.bot.answer(txt))
+            """
+            def async_answer():
+                print("START_ASYNC")
+                self.bot.is_answering = True
+                # Анимация
+                for i in range(3):
+                    print("{")
+                    self.chat.insertPlainText(".")
+                    time.sleep(0.5)
+                    print("}")
+                self.bot.is_answering = False
+                print("END_ASYNC")
+            threading.Thread(target=async_answer).start()"""
+            """# Очистить точки от анимации
+            print("Fff")
+            self.chat.setPlainText("")
+            print('fgdfg')
+            self.chat.insertPlainText(self.bot.answer(txt))
+            self.bot.is_answering = False"""
+
     def initUI(self):
         """Функция инициализации всех виджетов
         (вызывать её не надо)"""
@@ -62,22 +104,23 @@ class SergeyApp(QWidget):
         file_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "map2.html"))
         web.load(QUrl.fromLocalFile(file_path))
 
-        frame = QFrame(self)
-        frame.setFrameStyle(QFrame.Box)
+        input_frame = QFrame(self)
+        input_frame.setFrameStyle(QFrame.Box)
 
-        inputgrid = QGridLayout(frame)
+        inputgrid = QGridLayout(input_frame)
         
-        inputButtonTexts = ["Butzon", "Futzon", "Kutson"]
+        inputButtonTexts = ["Привет!", "Квест", "Пока!"]
         buttons = []
         for i in range(len(inputButtonTexts)):
-            buttons.append(InputButton(inputButtonTexts[i], frame))
+            buttons.append(InputButton(inputButtonTexts[i], input_frame, self))
             inputgrid.addWidget(buttons[i], 0, i, 1, 1)
-        self.inputbox = QPlainTextEdit("", frame)
-        inputgrid.addWidget(self.inputbox, 1, 0, 1, len(buttons))
-        self.inputbox.setPlainText("")
+        
+        self.inputbox = QLineEdit(input_frame)
+        self.inputbox.returnPressed.connect(self.sendMsg)
+        inputgrid.addWidget(self.inputbox, 1, 0, 1, -1)
 
-        lbl = QLabel("reerrer", self)
-        lbl.setWordWrap(True)
+        self.chat = Chat("")
+        
         
         # QGridLayout - один из макетных классов, которые помогает управлять
         # положением виджетов. Этот класс управляет положениями виджетов
@@ -95,9 +138,9 @@ class SergeyApp(QWidget):
 
 
         # Добавляем все наши виджеты (кнопки, веб страницы и т.д.)
-        main_layout.addWidget(lbl,   0,  0,   70,   60)
-        main_layout.addWidget(frame, 70, 0,   30,   60)
-        main_layout.addWidget(web,   0,  60,  100,  40)
+        main_layout.addWidget(self.chat,   0, 0,  80, 60)
+        main_layout.addWidget(input_frame,  80, 0,  20, 60)
+        main_layout.addWidget(web,          0, 60,  100, 40)
 
         #self.main_layout.setColumnStretch(0, 2)
         #self.main_layout.setColumnStretch(1, 1)
@@ -123,15 +166,28 @@ if __name__ == "__main__":
             qproperty-alignment: AlignLeft;
             margin: 10px;
         }
-        QPlainTextEdit {
-            background-color: White;
+        Chat {
+            background-color: LightGray;
+            padding: 15px;
+            font-size: 15pt;
+            margin: 10px;
+        }
+        QLineEdit {
+            background-color: Silver;
             font-size: 15pt;
         }
-        QPushButton {
-            background-color: Green;
+        InputButton {
+            background-color: ForestGreen;
             color: White;
             font-weight: Bold;
+            border-radius: 5px;
             min-height: 20px;
+        }
+        QPushButton:hover {
+            background-color: Green;
+        }
+        QPushButton:pressed {
+            background-color: DarkGreen;
         }
         QWebEngineView {
             margin: 10px;
