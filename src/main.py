@@ -7,10 +7,15 @@ from PyQt5.QtCore import QUrl, QRect, QPoint, QSize, Qt, QCoreApplication, QFile
 #import PyQt5
 import os
 import random
+import json
 import time
 import threading
 import re
 #import output
+
+# вычисляет аа
+def distance(p1, p2):
+    pass
 
 def isStrInList(s, l):
     #print("is", s, "in", l, "?")
@@ -25,33 +30,65 @@ class SergeyBot:
     функций, ну да ладна...)"""
     def __init__(self, app):
         self.is_answering = False
+        self.waiting_for_destination = False
         self.app = app
+        self.quest = app.quest
+        self.traverse_root = None
+        self.prev_coords = None
         self.quest_questions = ("квест", "приключение", "хачю гулять")
         self.greeting_questions = ("привет", "здравствуй")
         self.greeting_answers = ("Привет!", "Здравствуй!")
         self.default_answers = ("Непонял...", "Я играю в танки...")
     
+    def printToChat(self, s : str):
+        self.app.chat.insertPlainText(s)
+        self.app.chat.verticalScrollBar().setValue(self.app.chat.verticalScrollBar().maximum())
+    
+    def printPossibleDestinations(self):
+        self.printToChat("Куда пойдём?\n")
+        places = self.traverse_root["nodes"]
+        for i in range(len(places) - 1):
+            self.printToChat("В \"" + places[i]["name"] + "\" или\n")
+        self.printToChat("В \"" + places[-1]["name"] + "\"")
+
     def answer(self, question : str):
         question = question.lower()
-        if isStrInList(question, self.quest_questions):
+        if self.waiting_for_destination:
+            destination = None
+            destination_index = 0
+            for i in range(len(self.traverse_root["nodes"])):
+                if question == self.traverse_root["nodes"][i]["name"].lower():
+                    destination = question
+                    destination_index = i
+                    break
+            
+            if destination != None:
+                self.waiting_for_destination = False
+                self.traverse_root = self.traverse_root["nodes"][destination_index]
+                print(self.traverse_root)
+                self.printToChat(self.traverse_root["description"])
+            else:
+                self.printPossibleDestinations()
+        elif isStrInList(question, self.quest_questions):
             self.app.web.page().runJavaScript("""map.flyTo({center: [
 				                            -74.50 + (Math.random() - 0.5) * 10,
 				                            40 + (Math.random() - 0.5) * 10]})""")
-            return "Загружаю квест..."
+            self.printToChat("Загружаю квест...\n")
+            self.printToChat(self.quest["quest_name"] + ".\n" + self.quest["quest_description"] + "\n")
+            self.traverse_root = self.quest["quest_tree"]
+            self.printPossibleDestinations()
+            self.waiting_for_destination = True
+        elif isStrInList(question, self.greeting_questions):
+            self.printToChat(random.choice(self.greeting_answers))
         
-        if isStrInList(question, self.greeting_questions):
-            return random.choice(self.greeting_answers)
-        
-        return random.choice(self.default_answers)
+        else:
+            self.printToChat(random.choice(self.default_answers))
 
 class Chat(QTextEdit):
     def __init__(self, str = "", parent=None):
         super().__init__(str, parent)
         self.setReadOnly(True)
         #with f = open("chat.html")
-    
-
-
 
 class InputButton(QPushButton):
     def __init__(self, s, parent, mainApp):
@@ -72,6 +109,8 @@ class SergeyApp(QWidget):
     Тут располагаются все виджеты(кнопки, поля ввода и др.)"""
     def __init__(self):
         super().__init__()
+        with open("src/quest.json", encoding="utf-8") as f:
+            self.quest = json.load(f)
         self.bot = SergeyBot(self)
         self.initUI()
     
@@ -84,6 +123,7 @@ class SergeyApp(QWidget):
             self.chat.append("Вы: " + txt)
             self.chat.setTextColor(Qt.black)
             self.chat.insertPlainText("\nСерёга: ")
+            self.chat.verticalScrollBar().setValue(self.chat.verticalScrollBar().maximum())
 
             for i in range(3):
                 self.chat.insertPlainText(".")
@@ -93,7 +133,7 @@ class SergeyApp(QWidget):
                 time.sleep(0.5)
             for i in range(3):
                 self.chat.textCursor().deletePreviousChar()
-            self.chat.insertPlainText(self.bot.answer(txt))
+            self.bot.answer(txt)
             self.bot.is_answering = False
 
     def initUI(self):
@@ -118,7 +158,7 @@ class SergeyApp(QWidget):
         # Получаем абсолютный путь файла
         # map2.html (почему-то QWebEngineView
         # загружает только абсолютные пути файла).
-        file_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "map2.html"))
+        file_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "index.html"))
         self.web.setPage(WebPage(self.web))
         self.web.load(QUrl.fromLocalFile(file_path))
         
@@ -146,7 +186,6 @@ class SergeyApp(QWidget):
         inputgrid.addWidget(self.inputbox, 1, 0, 1, -1)
 
         self.chat = Chat()
-        
         
         # QGridLayout - один из макетных классов, которые помогает управлять
         # положением виджетов. Этот класс управляет положениями виджетов

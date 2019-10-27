@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset='utf-8' />
+	<title>Display a map</title>
+	<meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
+	<script src='https://api.tiles.mapbox.com/mapbox-gl-js/v1.4.1/mapbox-gl.js'></script>
+	<link href='https://api.tiles.mapbox.com/mapbox-gl-js/v1.4.1/mapbox-gl.css' rel='stylesheet' />
+	<style>
+		body {
+			margin:0;
+			padding:0;
+		}
+		#map {
+			position:absolute;
+			top:0;
+			bottom:0;
+			width:100%;
+		}
+	</style>
+</head>
+
+
+<body>
+	<div id='map'></div>
+	<script>
+		mapboxgl.accessToken = 'pk.eyJ1IjoiYnViYWR1YmFrdWJhIiwiYSI6ImNrMXo5aGtiMjB0MjYzY3FlY3dlNXFqNG8ifQ.fxACy86TafqYau4s31-KGA';
+		var map = new mapboxgl.Map({
+			container: 'map', // container id
+			style: 'mapbox://styles/mapbox/streets-v11', // stylesheet location
+			center: [-122.662323, 45.523751], // starting position [lng, lat]
+			zoom: 12 // starting zoom
+		});
+		// set the bounds of the map
+		var bounds = [[-123.069003, 45.395273], [-122.303707, 45.612333]];
+		map.setMaxBounds(bounds);
+		
+		// initialize the map canvas to interact with later
+		var canvas = map.getCanvasContainer();
+
+		// an arbitrary start will always be the same
+		// only the end or destination will change
+		var start = [-122.662323, 45.523751];
+
+		function bruhmoment() {
+			map.flyTo({
+				center: [
+				-74.50 + (Math.random() - 0.5) * 10,
+				40 + (Math.random() - 0.5) * 10]
+			});
+			console.log('lolkek');
+			return 12345;
+		}
+		/**
+ 		 * @param {Array} from Source coordinates (float longitude, float latitude)
+		 * @param {Array} to Destination coordinates (float longitude, float latitude)
+		 */
+		 
+		function getRoute(from, to) {
+			console.log('Getting route...');
+			let url = `https://api.mapbox.com/directions/v5/mapbox/cycling/${from[0]},${from[1]};${to[0]},${to[1]}?steps=true&geometries=geojson&access_token=${mapboxgl.accessToken}`;
+			let req = new XMLHttpRequest();
+			req.responseType = 'json';
+			req.open('GET', url, true);
+			req.onload = function() {
+				let data = req.response.routes[0];
+				let route = data.geometry.coordinates;
+				var geojson = {
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'LineString',
+						coordinates: route
+					}
+				};
+				// If route already exists on the map, replace it
+				if (map.getSource('route')) {
+					map.getSource('route').setData(geojson);
+				} else {
+					map.addLayer({
+						id: 'route',
+						type: 'line',
+						source: {
+							type: 'geojson',
+							data: {
+								type: 'Feature',
+								properties: {},
+								geometry: {
+									type: 'LineString',
+									coordinates: geojson
+								}
+							}
+						},
+						layout: {
+							'line-join': 'round',
+							'line-cap': 'round'
+						},
+						paint: {
+							'line-color': '#ffff00',
+							'line-width': 5,
+							'line-opacity': 0.75
+						}
+					});
+				}
+				
+			};
+			req.send();
+		}
+
+		map.on('load', function() {
+			getRoute([-122.662323, 45.523751], [-122.662323, 45.523751]);
+		});
+	</script>
+	<noscript>
+		JavaScript is required to run this app.
+	</noscript>
+</body>
+</html>
