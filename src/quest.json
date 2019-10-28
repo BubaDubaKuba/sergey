@@ -25,12 +25,12 @@
                 "questions": [
                     {
                         "question": "Как каменить?",
-                        "possible_answers": ["Стоя", "Сидя"],
+                        "correct_answers": ["Стоя", "Сидя"],
                         "score": 228
                     },
                     {
                         "question": "Как каменитьнить?",
-                        "possible_answers": ["Стояя", "Сидяя"],
+                        "correct_answers": ["Стояя", "Сидяя"],
                         "score": 1337
                     }
                 ]

@@ -29,11 +29,11 @@
 			container: 'map', // container id
 			style: 'mapbox://styles/mapbox/streets-v11', // stylesheet location
 			center: [-122.662323, 45.523751], // starting position [lng, lat]
-			zoom: 12 // starting zoom
+			zoom: 13.41 // starting zoom
 		});
 		// set the bounds of the map
-		var bounds = [[-123.069003, 45.395273], [-122.303707, 45.612333]];
-		map.setMaxBounds(bounds);
+		//var bounds = [[-123.069003, 45.395273], [-122.303707, 45.612333]];
+		//map.setMaxBounds(bounds);
 		
 		// initialize the map canvas to interact with later
 		var canvas = map.getCanvasContainer();
@@ -51,18 +51,62 @@
 			console.log('lolkek');
 			return 12345;
 		}
+
+		function editCircle(id, position, newColor, visibility) {
+			let destination = {
+				type: 'FeatureCollection',
+				features: [{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: position
+					}
+				}]
+			}
+			
+			if (map.getLayer(id)) {
+			} else {
+				map.addLayer({
+				id: id,
+				type: 'circle',
+					'paint': {
+						'circle-radius': 10,
+						'circle-color': newColor
+					},
+					source: {
+						type: 'geojson',
+						data: {
+							type: 'FeatureCollection',
+							features: [{
+								type: 'Feature',
+								properties: {},
+								geometry: {
+									type: 'Point',
+									coordinates: position
+								}
+							}]
+						}
+					}
+				});
+			}
+			map.getSource(id).setData(destination);
+			map.setPaintProperty(id, 'circle-color', newColor)
+			map.setLayoutProperty(id, 'visibility', visibility)
+		}
+
 		/**
  		 * @param {Array} from Source coordinates (float longitude, float latitude)
 		 * @param {Array} to Destination coordinates (float longitude, float latitude)
 		 */
-		 
-		function getRoute(from, to) {
+		function getRoute(id, from, to, lineColor, circleColor) {
 			console.log('Getting route...');
-			let url = `https://api.mapbox.com/directions/v5/mapbox/cycling/${from[0]},${from[1]};${to[0]},${to[1]}?steps=true&geometries=geojson&access_token=${mapboxgl.accessToken}`;
+			let url = `https://api.mapbox.com/directions/v5/mapbox/cycling/${from[0]},${from[1]};${to[0]},${to[1]}?steps=false&geometries=geojson&access_token=${mapboxgl.accessToken}`;
 			let req = new XMLHttpRequest();
 			req.responseType = 'json';
 			req.open('GET', url, true);
 			req.onload = function() {
+				//console.log(req.response)
 				let data = req.response.routes[0];
 				let route = data.geometry.coordinates;
 				var geojson = {
@@ -73,12 +117,12 @@
 						coordinates: route
 					}
 				};
+				let route_id = `route_${id}`;
 				// If route already exists on the map, replace it
-				if (map.getSource('route')) {
-					map.getSource('route').setData(geojson);
+				if (map.getSource(route_id)) {
 				} else {
 					map.addLayer({
-						id: 'route',
+						id: route_id,
 						type: 'line',
 						source: {
 							type: 'geojson',
@@ -96,19 +140,43 @@
 							'line-cap': 'round'
 						},
 						paint: {
-							'line-color': '#ffff00',
+							'line-color': lineColor,
 							'line-width': 5,
-							'line-opacity': 0.75
+							'line-opacity': 1.0
 						}
 					});
 				}
+				map.getSource(route_id).setData(geojson);
+				map.setPaintProperty(route_id, 'line-color', lineColor)
+				map.setLayoutProperty(route_id, 'visibility', 'visible')
 				
+				editCircle(`end_${id}`, to, circleColor, 'visible')
 			};
 			req.send();
 		}
 
+
+		let lastRoutesCount = 0;
+		/**
+		 * @Param {Array} points = [[startingCoords, startingPointColor], [point1Coords, point1LineColor, point1Color], ...]
+		 */
+		function getRoutes(points) {
+			// Hide all unused routes and points
+			for (let i = points.length; i < lastRoutesCount; i++) {
+				map.setLayoutProperty(`end_${i}`, 'visibility', 'none')
+				map.setLayoutProperty(`route_${i}`, 'visibility', 'none')
+				console.log("Hidden:", i)
+			}
+			lastRoutesCount = points.length
+			
+			for (let i = 1; i < points.length; i++) {
+				//console.log(i.toString(), points[0][0], points[i][0], points[i][1], points[i][2])
+				getRoute(i.toString(), points[0][0], points[i][0], points[i][1], points[i][2])
+			}
+		}
+
 		map.on('load', function() {
-			getRoute([-122.662323, 45.523751], [-122.662323, 45.523751]);
+			//getRoute('1', [-122.662323, 45.523751], [-122.662323, 45.523751], '#ff3300', '#d61515');
 		});
 	</script>
 	<noscript>
