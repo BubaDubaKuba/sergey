@@ -1,9 +1,11 @@
 # TODO: add app icon
 
-from PyQt5.QtWidgets import QApplication, QWidget, QGridLayout, QHBoxLayout, QVBoxLayout, QPushButton, QLabel, QFrame, QTextEdit, QPlainTextEdit, QLineEdit, QSpacerItem, QSizePolicy
-from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEngineSettings, QWebEnginePage
-from PyQt5.QtGui import QIcon, QColor, QTextCursor
-from PyQt5.QtCore import QUrl, QRect, QPoint, QSize, Qt, QCoreApplication, QFile, QTextStream
+import PySide2
+
+from PySide2.QtWidgets import QApplication, QWidget, QGridLayout, QHBoxLayout, QVBoxLayout, QPushButton, QLabel, QFrame, QTextEdit, QPlainTextEdit, QLineEdit, QSpacerItem, QSizePolicy
+from PySide2.QtWebEngineWidgets import QWebEngineView, QWebEngineSettings, QWebEnginePage
+from PySide2.QtGui import QIcon, QColor, QTextCursor
+from PySide2.QtCore import QUrl, QRect, QPoint, QSize, Qt, QCoreApplication, QFile, QTextStream
 #import PyQt5
 import os
 import random
@@ -218,6 +220,8 @@ if __name__ == "__main__":
     import sys
     print("Start!")
     app = QApplication(sys.argv)
+    pyqt = os.path.dirname(PySide2.__file__)
+    QApplication.addLibraryPath(os.path.join(pyqt, "plugins"))
     app.setStyleSheet("""
         QFrame {
             border: 0;
