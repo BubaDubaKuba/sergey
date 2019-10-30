@@ -95,6 +95,43 @@
 			map.setLayoutProperty(id, 'visibility', visibility)
 		}
 
+		function addMarker(position, text, event) {
+			markId = `marker_${position}`;
+			//console.log(markId)
+			map.addLayer({
+				"id": markId,
+				"type": "symbol",
+				"source": {
+					"type": "geojson",
+					"data": {
+						"type": "FeatureCollection",
+						"features": [{
+							"type": "Feature",
+							"geometry": {
+								"type": "Point",
+								"coordinates": position
+							},
+							"properties": {
+								"title": text,
+								"icon": "blue_circle"
+							}
+						}]
+					}
+				},
+				"layout": {
+					"icon-image": "{icon}",
+					"icon-size": 0.25,
+					"text-field": "{title}",
+					"text-font": ["Open Sans Semibold", "Arial Unicode MS Bold"],
+					"text-offset": [0.0, 1.0],
+					"text-anchor": "top"
+				},
+				"paint": {
+					"text-color": "#000000",
+				}
+			});
+		}
+
 		/**
  		 * @param {Array} from Source coordinates (float longitude, float latitude)
 		 * @param {Array} to Destination coordinates (float longitude, float latitude)
@@ -160,24 +197,53 @@
 		/**
 		 * @Param {Array} points = [[startingCoords, startingPointColor], [point1Coords, point1LineColor, point1Color], ...]
 		 */
-		function getRoutes(points) {
+		function getRoutes(startColor, lineColor, endColor, points) {
 			// Hide all unused routes and points
 			for (let i = points.length; i < lastRoutesCount; i++) {
 				map.setLayoutProperty(`end_${i}`, 'visibility', 'none')
 				map.setLayoutProperty(`route_${i}`, 'visibility', 'none')
-				console.log("Hidden:", i)
+				//console.log("Hidden:", i)
 			}
 			lastRoutesCount = points.length
 			
 			for (let i = 1; i < points.length; i++) {
 				//console.log(i.toString(), points[0][0], points[i][0], points[i][1], points[i][2])
-				getRoute(i.toString(), points[0][0], points[i][0], points[i][1], points[i][2])
+				getRoute(i.toString(), points[0], points[i], lineColor, endColor)
 			}
 		}
 
 		map.on('load', function() {
+			map.loadImage('https://i.imgur.com/U3yhm5z.png', function(error, image) {
+				if (error) throw error;
+				map.addImage('blue_circle', image);
+				/*map.addLayer({
+					"id": "points",
+					"type": "symbol",
+					"source": {
+						"type": "geojson",
+						"data": {
+							"type": "FeatureCollection",
+							"features": [{
+								"type": "Feature",
+								"geometry": {
+									"type": "Point",
+									"coordinates": [0, 0]
+								}
+							}]
+						}
+					},
+					"layout": {
+						"icon-image": "blue_circle",
+						"icon-size": 0.25
+					}
+				})*/
+			})
 			//getRoute('1', [-122.662323, 45.523751], [-122.662323, 45.523751], '#ff3300', '#d61515');
-		});
+		})
+		map.on('click', function(e) {
+			addMarker([e.lngLat.lng, e.lngLat.lat], String(e.lngLat.lat), function(){})
+			//console.log(e)
+		})
 	</script>
 	<noscript>
 		JavaScript is required to run this app.
