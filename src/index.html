@@ -6,6 +6,7 @@
 	<meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
 	<script src='https://api.tiles.mapbox.com/mapbox-gl-js/v1.4.1/mapbox-gl.js'></script>
 	<link href='https://api.tiles.mapbox.com/mapbox-gl-js/v1.4.1/mapbox-gl.css' rel='stylesheet' />
+	<script src="qrc:///qtwebchannel/qwebchannel.js"></script>
 	<style>
 		body {
 			margin:0;
@@ -41,16 +42,18 @@
 		// an arbitrary start will always be the same
 		// only the end or destination will change
 		var start = [-122.662323, 45.523751];
-
-		function bruhmoment() {
-			map.flyTo({
-				center: [
-				-74.50 + (Math.random() - 0.5) * 10,
-				40 + (Math.random() - 0.5) * 10]
-			});
-			console.log('lolkek');
-			return 12345;
+		
+		let handler = null
+		let loadedHandler = false
+		new QWebChannel(qt.webChannelTransport, function (channel) {
+			handler = channel.objects.jsHandler;
+			loadedHandler = true
+			console.log('BEFORE', handler)
+		});
+		while (!loadedHandler) {
 		}
+		console.log('AFTER', handler)
+			handler.test(1237);
 
 		function editCircle(id, position, newColor, visibility) {
 			let destination = {
@@ -94,11 +97,24 @@
 			map.setPaintProperty(id, 'circle-color', newColor)
 			map.setLayoutProperty(id, 'visibility', visibility)
 		}
+		
+		function randomChoice(arr) {
+			return arr[Math.floor(Math.random() * arr.length)];
+		}
 
-		function addMarker(position, text, event) {
-			markId = `marker_${position}`;
+		function addMarker(id, position, icon, text, clicked) {
+			markId = `marker_${id}`;
+
+			let el = document.createElement('span')
+			el.innerHTML = `<span class="${icon}"></span><br />${text}`
+			el.id = markId
+			el.addEventListener('click', clicked)
+			new mapboxgl.Marker(el, {})
+					.setLngLat(position)
+					.addTo(map)
+			console.log("ADDED ", document)
 			//console.log(markId)
-			map.addLayer({
+			/*map.addLayer({
 				"id": markId,
 				"type": "symbol",
 				"source": {
@@ -113,14 +129,14 @@
 							},
 							"properties": {
 								"title": text,
-								"icon": "blue_circle"
+								"icon": "red_circle"
 							}
 						}]
 					}
 				},
 				"layout": {
 					"icon-image": "{icon}",
-					"icon-size": 0.25,
+					"icon-size": 0.2,
 					"text-field": "{title}",
 					"text-font": ["Open Sans Semibold", "Arial Unicode MS Bold"],
 					"text-offset": [0.0, 1.0],
@@ -129,14 +145,19 @@
 				"paint": {
 					"text-color": "#000000",
 				}
-			});
+			});*/
+		}
+		
+		function removeMarker(id) {
+			document.getElementById(`marker_${id}`).remove()
+			console.log("REMOVED ", document)
 		}
 
 		/**
  		 * @param {Array} from Source coordinates (float longitude, float latitude)
 		 * @param {Array} to Destination coordinates (float longitude, float latitude)
 		 */
-		function getRoute(id, from, to, lineColor, circleColor) {
+		function getRoute(id, from, to, lineColor, endMarkerId) {
 			console.log('Getting route...');
 			let url = `https://api.mapbox.com/directions/v5/mapbox/cycling/${from[0]},${from[1]};${to[0]},${to[1]}?steps=false&geometries=geojson&access_token=${mapboxgl.accessToken}`;
 			let req = new XMLHttpRequest();
@@ -187,7 +208,13 @@
 				map.setPaintProperty(route_id, 'line-color', lineColor)
 				map.setLayoutProperty(route_id, 'visibility', 'visible')
 				
-				editCircle(`end_${id}`, to, circleColor, 'visible')
+				//editCircle(`end_${id}`, to, circleColor, 'visible')
+
+				if (!document.getElementById(`marker_${id}`)) {
+					addMarker(id, to, endMarkerId, `Bruh${id}`, function () {
+						console.log(`Clickedd ${id}`)
+					})
+				}
 			};
 			req.send();
 		}
@@ -195,27 +222,56 @@
 
 		let lastRoutesCount = 0;
 		/**
-		 * @Param {Array} points = [[startingCoords, startingPointColor], [point1Coords, point1LineColor, point1Color], ...]
+		 * @Param {Array} points = [[latLng : coords, endMarker : str], ..]
 		 */
-		function getRoutes(startColor, lineColor, endColor, points) {
+		function getRoutes(points) {
+			lineColor = '#ff0000'
 			// Hide all unused routes and points
 			for (let i = points.length; i < lastRoutesCount; i++) {
-				map.setLayoutProperty(`end_${i}`, 'visibility', 'none')
+				//map.setLayoutProperty(`end_${i}`, 'visibility', 'none')
+				removeMarker(i)
 				map.setLayoutProperty(`route_${i}`, 'visibility', 'none')
-				//console.log("Hidden:", i)
+				console.log("Hidden:", i)
 			}
 			lastRoutesCount = points.length
 			
 			for (let i = 1; i < points.length; i++) {
 				//console.log(i.toString(), points[0][0], points[i][0], points[i][1], points[i][2])
-				getRoute(i.toString(), points[0], points[i], lineColor, endColor)
+				console.log(`getRoute(${i.toString()}, ${points[0][0]}, ${points[i][0]}, ${lineColor}, ${points[i][1]})`)
+				getRoute(i.toString(), points[0][0], points[i][0], lineColor, points[i][1])
+				//getRoute(i.toString(), points[0], points[i], lineColor, endColor)
 			}
 		}
 
-		map.on('load', function() {
-			map.loadImage('https://i.imgur.com/U3yhm5z.png', function(error, image) {
+		function addStyle(css) {
+			head = document.head || document.getElementsByTagName('head')[0],
+			style = document.createElement('style');
+			
+			head.appendChild(style);
+
+			style.type = 'text/css';
+			if (style.styleSheet){
+				// This is required for IE8 and below.
+				style.styleSheet.cssText = css;
+			} else {
+				style.appendChild(document.createTextNode(css));
+			}
+		}
+
+		function loadImage(url, id) {
+			addStyle(`
+				span.${id}::before {
+					display:inline-block;
+					height:32px;
+					width:32px;
+					content: "";
+					background: url(${url}}) no-repeat 0 0;
+					background-size: 32px 32px;
+				}`)
+			/*map.loadImage(url, function(error, image) {
 				if (error) throw error;
-				map.addImage('blue_circle', image);
+				map.addImage(id, image);*/
+				
 				/*map.addLayer({
 					"id": "points",
 					"type": "symbol",
@@ -237,11 +293,18 @@
 						"icon-size": 0.25
 					}
 				})*/
-			})
+		}
+
+		map.on('load', function() {
+			loadImage('https://i.imgur.com/U3yhm5z.png', 'red_circle')
+			loadImage('https://i.imgur.com/9Nj7qVy.png', 'red_star')
 			//getRoute('1', [-122.662323, 45.523751], [-122.662323, 45.523751], '#ff3300', '#d61515');
 		})
 		map.on('click', function(e) {
-			addMarker([e.lngLat.lng, e.lngLat.lat], String(e.lngLat.lat), function(){})
+			/*addMarker([e.lngLat.lng, e.lngLat.lat], "red_star", String(e.lngLat.lat), function() {
+				console.log('BRUURURUH')
+			})*/
+			//handleMarkers()
 			//console.log(e)
 		})
 	</script>

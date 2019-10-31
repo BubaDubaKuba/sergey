@@ -4,8 +4,9 @@ import PySide2
 
 from PySide2.QtWidgets import QApplication, QWidget, QGridLayout, QHBoxLayout, QVBoxLayout, QPushButton, QLabel, QFrame, QTextEdit, QPlainTextEdit, QLineEdit, QSpacerItem, QSizePolicy
 from PySide2.QtWebEngineWidgets import QWebEngineView, QWebEngineSettings, QWebEnginePage
+from PySide2.QtWebChannel import QWebChannel
 from PySide2.QtGui import QIcon, QColor, QTextCursor
-from PySide2.QtCore import QUrl, QRect, QPoint, QSize, Qt, QCoreApplication, QFile, QTextStream
+from PySide2.QtCore import QObject, Slot, QUrl, QRect, QPoint, QSize, Qt, QCoreApplication, QFile, QTextStream
 #import PyQt5
 import os
 import random
@@ -25,6 +26,13 @@ def isStrInList(s, l):
         if i in s:
             return True
     return False
+
+
+class CallHandler(QObject):
+    """Принимает вызовы из джаваскрипта"""
+    @Slot(int)
+    def test(self, nodeId):
+        print('CALCAL Call received', nodeId)
 
 class SergeyBot:
     """Класс, отвечающий за "понимание" ввода пользователя.
@@ -114,6 +122,7 @@ class SergeyApp(QWidget):
         with open("src/quest.json", encoding="utf-8") as f:
             self.quest = json.load(f)
         self.bot = SergeyBot(self)
+
         self.initUI()
     
     def sendMsg(self):
@@ -171,7 +180,12 @@ class SergeyApp(QWidget):
                 #self.web.page().runJavaScript("bruhmoment()", ready)
                 pass
         self.web.loadFinished.connect(loadFinished)
-        
+
+        self.jsChannel = QWebChannel()
+        self.jsHandler = CallHandler()
+        self.jsChannel.registerObject("jsHandler", self.jsHandler)
+        self.web.page().setWebChannel(self.jsChannel)
+
         input_frame = QFrame(self)
         input_frame.setFrameStyle(QFrame.Box)
 
@@ -220,8 +234,8 @@ if __name__ == "__main__":
     import sys
     print("Start!")
     app = QApplication(sys.argv)
-    pyqt = os.path.dirname(PySide2.__file__)
-    QApplication.addLibraryPath(os.path.join(pyqt, "plugins"))
+    #pyqt = os.path.dirname(PySide2.__file__)
+    #QApplication.addLibraryPath(os.path.join(pyqt, "plugins"))
     app.setStyleSheet("""
         QFrame {
             border: 0;
